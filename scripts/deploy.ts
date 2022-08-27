@@ -1,18 +1,22 @@
 import { ethers } from "hardhat";
+import * as dotenv from 'dotenv';
+dotenv.config();
+
+
+const SUBSCRIPTION_ID  = process.env.SUBSCRIPTION_ID ? parseInt(process.env.SUBSCRIPTION_ID) : -1;
 
 async function main() {
-  const currentTimestampInSeconds = Math.round(Date.now() / 1000);
-  const ONE_YEAR_IN_SECS = 365 * 24 * 60 * 60;
-  const unlockTime = currentTimestampInSeconds + ONE_YEAR_IN_SECS;
+  if (!SUBSCRIPTION_ID || SUBSCRIPTION_ID <= 0) {
+    throw new Error('No valid subscription id');
+  }
 
-  const lockedAmount = ethers.utils.parseEther("1");
+  const Betwei = await ethers.getContractFactory("Betwei");
+  const betwei = await Betwei.deploy(SUBSCRIPTION_ID);
 
-  const Lock = await ethers.getContractFactory("Lock");
-  const lock = await Lock.deploy(unlockTime, { value: lockedAmount });
+  await betwei.deployed();
 
-  await lock.deployed();
+  console.log('Contract deployed, address', betwei.address);
 
-  console.log("Lock with 1 ETH deployed to:", lock.address);
 }
 
 // We recommend this pattern to be able to use async/await everywhere
