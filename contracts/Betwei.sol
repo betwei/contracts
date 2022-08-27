@@ -10,8 +10,9 @@ contract Betwei is VRFConsumerBaseV2 {
 
   uint64 s_subscriptionId;
 
-  address vrfCoordinator = 0x6168499c0cFfCaCD319c818142124B7A15E857ab;
-  bytes32 keyHash = 0xd89b2bf150e3b9e13446986e571fb9cab24b13cea0a43ea20a6049a85cc807cc;
+  // Rinkeby address and keyhash Chainlink VRF
+  address vrfCoordinator; // = 0x6168499c0cFfCaCD319c818142124B7A15E857ab;
+  bytes32 keyHash; // = 0xd89b2bf150e3b9e13446986e571fb9cab24b13cea0a43ea20a6049a85cc807cc;
 
   uint32 callbackGasLimit = 100000;
 
@@ -23,10 +24,17 @@ contract Betwei is VRFConsumerBaseV2 {
   uint256 public s_requestId;
   address s_owner;
 
-  constructor(uint64 subscriptionId) VRFConsumerBaseV2(vrfCoordinator) {
-    COORDINATOR = VRFCoordinatorV2Interface(vrfCoordinator);
+  constructor(
+    uint64 _subscriptionId,
+    bytes32 _keyHash,
+    address _vrfCoordinatorAddress
+  )
+    VRFConsumerBaseV2(_vrfCoordinatorAddress)
+  {
+    COORDINATOR = VRFCoordinatorV2Interface(_vrfCoordinatorAddress);
     s_owner = msg.sender;
-    s_subscriptionId = subscriptionId;
+    keyHash = _keyHash;
+    s_subscriptionId = _subscriptionId;
   }
 
   // Assumes the subscription is funded sufficiently.
@@ -39,6 +47,8 @@ contract Betwei is VRFConsumerBaseV2 {
       callbackGasLimit,
       numWords
     );
+
+    // TODO emit event
   }
 
   function fulfillRandomWords(
