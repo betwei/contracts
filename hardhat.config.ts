@@ -1,8 +1,23 @@
 import { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
+import * as dotenv from 'dotenv';
+dotenv.config();
+
+const RINKEBY_PK_ADDRESS = process.env.RINKEBY_PK_ADDRESS || '';
+const ALCHEMY_KEY = process.env.ALCHEMY_KEY || '';
+const ETHERSCAN_APIKEY = process.env.ETHERSCAN_APIKEY || '';
 
 const config: HardhatUserConfig = {
   solidity: "0.8.9",
+  networks: {
+    rinkeby: {
+      url: `https://eth-rinkeby.alchemyapi.io/v2/${ALCHEMY_KEY}`,
+      accounts: [RINKEBY_PK_ADDRESS]
+    }
+  },
+  etherscan: {
+    apiKey: ETHERSCAN_APIKEY
+  }
 };
 
 export default config;
