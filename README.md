@@ -1,5 +1,9 @@
 # BetWei Contracts
 
+Crear el archivo `.env` en el directorio principal del proyecto. Puede copiar el archivo `.env.example`
+  ```
+    cp .env.example .env
+  ```
 
 ### Commands hardhat
 ```shell
