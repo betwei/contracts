@@ -11,7 +11,13 @@ async function main() {
   }
 
   const Betwei = await ethers.getContractFactory("Betwei");
-  const betwei = await Betwei.deploy(SUBSCRIPTION_ID);
+  // supported networks VRF
+  // https://docs.chain.link/docs/vrf/v2/supported-networks/#configurations
+  const betwei = await Betwei.deploy(
+    SUBSCRIPTION_ID,
+    "0xd89b2bf150e3b9e13446986e571fb9cab24b13cea0a43ea20a6049a85cc807cc" // rinkeby
+    "0x6168499c0cFfCaCD319c818142124B7A15E857ab" // rinkeby
+  );
 
   await betwei.deployed();
 
