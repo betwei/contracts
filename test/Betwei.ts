@@ -72,7 +72,31 @@ describe("Betwei test", function () {
 
     await expect(
        betwei.connect(otherAccount).enrollToGame(gameId)
-    ).to.emit(betwei, "EnrolledToGame")
+    ).to.emit(betwei, "EnrolledToGame");
+
+    expect(
+       await betwei.connect(otherAccount).enrollToGame(gameId)
+    ).to.revertedWith("User already enrolled");
+
+    expect(
+       await betwei.connect(owner).enrollToGame(gameId)
+    ).to.revertedWith("User already enrolled");
+
+    expect(
+       await betwei.connect(owner).usersEnrolled(gameId)
+    ).to.equal(2);
+
+    expect(
+       await betwei.connect(otherAccount).start(gameId)
+    ).to.revertedWith("User isn't the owner");
+
+    expect(
+       await betwei.connect(owner).start(gameId)
+    ).to.emit(betwei, "CalculatingWinner");
+
+    expect(
+       await betwei.connect(owner).start(gameId)
+    ).to.be.oneOf([owner, otherAccount]);
 
   })
 
