@@ -71,16 +71,16 @@ describe("Betwei test", function () {
     expect(gameId).to.equal(0);
 
     await expect(
+       betwei.connect(owner).enrollToGame(gameId)
+    ).to.revertedWith("User cannot enroll");
+
+    await expect(
        betwei.connect(otherAccount).enrollToGame(gameId)
     ).to.emit(betwei, "EnrolledToGame");
 
-    expect(
-       await betwei.connect(otherAccount).enrollToGame(gameId)
-    ).to.revertedWith("User already enrolled");
-
-    expect(
-       await betwei.connect(owner).enrollToGame(gameId)
-    ).to.revertedWith("User already enrolled");
+    await expect(
+       betwei.connect(otherAccount).enrollToGame(gameId)
+    ).to.revertedWith("User cannot enroll");
 
     expect(
        await betwei.connect(owner).usersEnrolled(gameId)
@@ -92,7 +92,7 @@ describe("Betwei test", function () {
 
     expect(
        await betwei.connect(owner).start(gameId)
-    ).to.emit(betwei, "CalculatingWinner");
+    ).to.emit(betwei, "FinishGame");
 
     expect(
        await betwei.connect(owner).start(gameId)
