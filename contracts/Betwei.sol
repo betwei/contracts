@@ -22,7 +22,35 @@ contract Betwei is VRFConsumerBaseV2 {
 
   uint256[] public s_randomWords;
   uint256 public s_requestId;
+
   address s_owner;
+
+  enum GameTypes {
+    RANDOMWINNER
+  }
+
+  enum GameStatus {
+    OPEN,
+    CLOSED,
+    CALCULATING,
+    FINISHED
+  }
+
+  struct Game {
+    GameType type;
+    GameStatus status;
+    address gameOwner;
+    // TODO only registered by owner in private games?
+    address payable[] players;
+    uint256 gameId;
+    uint256 duration;
+    // TODO block number create game?
+  }
+
+  mapping(address => Game[]) games;
+
+  Game[] indexedGames;
+
 
   constructor(
     uint64 _subscriptionId,
@@ -36,6 +64,38 @@ contract Betwei is VRFConsumerBaseV2 {
     keyHash = _keyHash;
     s_subscriptionId = _subscriptionId;
   }
+
+  /**
+   * Manage game
+   */
+
+  /**
+   * Create new game
+   * duration param -> max players
+   * return gameId
+   */
+  function createNewGame(GameType _type, uint16 _duration) public returns(uint256) {
+    uint256 newIndex = indexedGames.length; 
+    indexedGames++;
+    Game memory newGame = new Game;
+    newGame.owner = msg.sender;
+    newGame.durantion = _duration;
+    newGame.type = _type;
+    newGame.status = GameStatus.OPEN;
+    newGame.players.push(msg.sender);
+    newGame.gameId = newIndex;
+
+    games[msg.sender].push(newGame)
+    indexedGames.push(newGame)
+
+    return newIndex;
+  }
+
+
+
+  /**
+   * Chainlink VRF functions
+   */
 
   // Assumes the subscription is funded sufficiently.
   function requestRandomWords() external onlyOwner {

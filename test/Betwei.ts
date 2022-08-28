@@ -65,10 +65,10 @@ describe("Betwei test", function () {
 
     // max duration (players)
     // type 0 random winner
-    let { events }  = await betwei.createNewGame(0, 2);
-    let { gameId:any } = events.filter( x => x.event === 'NewGameCreated')[0].args;
+    let { gameId: any }  = await betwei.createNewGame(0, 2);
+    //let { gameId:any } = events.filter( x => x.event === 'NewGameCreated')[0].args;
 
-    expect(gameId).to.equal(1);
+    expect(gameId).to.equal(0);
 
     await expect(
        betwei.connect(otherAccount).enrollToGame(gameId)
