@@ -2,6 +2,7 @@ import { time, loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { anyValue } from "@nomicfoundation/hardhat-chai-matchers/withArgs";
 import { expect } from "chai";
 import { ethers } from "hardhat";
+import { BigNumber } from 'ethers';
 import {Betwei, VRFCoordinatorV2Mock } from '../typechain-types'
 
 type Deploy = {
@@ -13,7 +14,7 @@ type Deploy = {
 
 describe("Betwei test", function () {
 
-  async function deployOneYearLockFixture() : Promise<Deploy> {
+  async function deployBetWai() : Promise<Deploy> {
     const [owner, otherAccount] = await ethers.getSigners();
 
     let vrfCoordinatorV2Mock = await ethers.getContractFactory("VRFCoordinatorV2Mock");
@@ -30,11 +31,13 @@ describe("Betwei test", function () {
     return { betwei, hardhatVrfCoordinatorV2Mock, owner, otherAccount };
   }
   it("Contract should request Random numbers successfully", async () => {
-    const {betwei, hardhatVrfCoordinatorV2Mock, owner} : Deploy = await deployOneYearLockFixture();
+    const {
+      betwei,
+      hardhatVrfCoordinatorV2Mock,
+      owner
+    } : Deploy = await deployBetWai();
 
-    let txGenerateRandoms = await betwei.requestRandomWords();
-
-    let { events } = await txGenerateRandoms.wait();
+    let { events } = await requestNewRandomNumbers(betwei);
 
     expect(await betwei.s_requestId()).to.equal(1);
 
@@ -47,8 +50,44 @@ describe("Betwei test", function () {
     ).to.emit(hardhatVrfCoordinatorV2Mock, "RandomWordsFulfilled")
 
     // random number
-    expect(await betwei.s_randomWords(0)).to.greaterThan(0)
-    expect(await betwei.s_randomWords(1)).to.greaterThan(0)
+    expect(await getRandomNumber(betwei, 0)).to.greaterThan(0)
+    expect(await getRandomNumber(betwei, 1)).to.greaterThan(0)
 
   });
+
+  it("Generate new bet", async () => {
+    const {
+      betwei,
+      hardhatVrfCoordinatorV2Mock,
+      owner,
+      otherAccount
+    } : Deploy = await deployBetWai();
+
+    // max duration (players)
+    // type 0 random winner
+    let { events }  = await betwei.createNewGame(0, 2);
+    let { gameId:any } = events.filter( x => x.event === 'NewGameCreated')[0].args;
+
+    expect(gameId).to.equal(1);
+
+    await expect(
+       betwei.connect(otherAccount).enrollToGame(gameId)
+    ).to.emit(betwei, "EnrolledToGame")
+
+  })
+
+  /**
+   * Functions
+   */
+  async function requestNewRandomNumbers(betwei: Betwei) {
+
+    let txGenerateRandoms = await betwei.requestRandomWords();
+
+    return txGenerateRandoms.wait();
+  }
+
+  async function getRandomNumber(betwei: Betwei, index: Number) {
+    return betwei.s_randomWords(BigNumber.from(index));
+  }
+
 });
