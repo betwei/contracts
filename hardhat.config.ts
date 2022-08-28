@@ -12,7 +12,7 @@ const config: HardhatUserConfig = {
   networks: {
     rinkeby: {
       url: `https://eth-rinkeby.alchemyapi.io/v2/${ALCHEMY_KEY}`,
-      accounts: [RINKEBY_PK_ADDRESS]
+      accounts: RINKEBY_PK_ADDRESS ? [RINKEBY_PK_ADDRESS] : []
     }
   },
   etherscan: {
