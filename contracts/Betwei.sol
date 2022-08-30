@@ -25,7 +25,7 @@ contract Betwei is VRFConsumerBaseV2 {
 
   address s_owner;
 
-  enum GameTypes {
+  enum GameType {
     RANDOMWINNER
   }
 
@@ -86,11 +86,10 @@ contract Betwei is VRFConsumerBaseV2 {
    */
   function createNewGame(GameType _type, uint16 _duration) public payable hasAmount returns(uint256) {
     uint256 newIndex = indexedGames.length; 
-    indexedGames++;
 
-    Game memory newGame = new Game;
+    Game storage newGame;
     newGame.owner = msg.sender;
-    newGame.durantion = _duration;
+    newGame.duration = _duration;
     newGame.gameType = _type;
     newGame.status = GameStatus.OPEN;
     newGame.playersBalance[msg.sender] += msg.value;
@@ -129,19 +128,18 @@ contract Betwei is VRFConsumerBaseV2 {
     return true;
   }
 
-  function startGame(uint256 gameId) external gameExists(gameId) canManageGame(gameId) returns(address) {
+  function startGame(uint256 gameId) external gameExists(gameId) canManageGame(gameId) {
     Game memory game = indexedGames[gameId];
     require(game.status == GameStatus.CLOSED);
     game.status = GameStatus.CALCULATING;
 
     // TODO multiple winner
-    address payable winner = _calculatingWinner(gameId);
+    _calculatingWinner(gameId);
 
-    return winner;
   }
 
   function _calculatingWinner(uint _gameId) internal  {
-    Game memory game = indexedGames[gameId];
+    Game memory game = indexedGames[_gameId];
     require(game.status == GameStatus.CALCULATING, "You aren't at that stage yet!");
 
     // TODO migrato to governance smartcontract
@@ -181,7 +179,7 @@ contract Betwei is VRFConsumerBaseV2 {
   }
 
   function fulfillRandomWords(
-    uint256 requestId
+    uint256 requestId,
     uint256[] memory randomWords
   ) internal override {
     Game memory game = requests[requestId];
@@ -194,8 +192,8 @@ contract Betwei is VRFConsumerBaseV2 {
   }
 
   function _selectWinner(Game memory game) internal {
-    emit FinishGame(gameId, game.winners);
-    uint256 winnerIndex = randomWords[0] % game.members.length;
+    emit FinishGame(game.gameId, game.winners);
+    uint256 winnerIndex = game.solution % game.members.length;
     game.winners[0] =  game.members[winnerIndex];
   }
 
@@ -215,7 +213,7 @@ contract Betwei is VRFConsumerBaseV2 {
   }
 
   modifier canEnroll(uint256 _gameId) {
-    Game memory game = indexedGames[gameId]
+    Game memory game = indexedGames[_gameId];
     require(game.playersBalance[msg.sender] <= 0, "User cannot enroll");
     require(game.durantion > game.members.length, "User cannot enroll");
     require(game.status != GameStatus.OPEN, "User cannot enroll");
@@ -225,10 +223,12 @@ contract Betwei is VRFConsumerBaseV2 {
   modifier canManageGame(uint _gameId) {
     Game memory game = indexedGames[_gameId];
     require(game.owner == msg.sender, "Can't start game");
+    _;
   }
 
   modifier hasAmount() {
     require(msg.value > 0, "Amount has greather than 0 ");
+    _;
   }
 
 }
