@@ -37,18 +37,21 @@ contract Betwei is VRFConsumerBaseV2 {
   }
 
   struct Game {
-    GameType type;
+    GameType gameType;
     GameStatus status;
     address owner;
     // TODO only registered by owner in private games?
     address payable[] members;
-    mapping(address => bool) players;
+    address[] winners;
+    mapping(address => uint256) playersBalance;
     uint256 gameId;
     uint256 duration;
+    uint256 solution;
     // TODO block number create game?
   }
 
   mapping(address => Game[]) games;
+  mapping(uint256 => Game[]) requests;
 
   Game[] indexedGames;
 
@@ -56,7 +59,7 @@ contract Betwei is VRFConsumerBaseV2 {
    * Events
    */
   event EnrolledToGame(uint256 gameId, address indexed player);
-  event FinishGame(uint256 gameId, address indexed winner); // TODO multiples winners?
+  event FinishGame(uint256 gameId, address[] indexed winner); // TODO multiples winners?
 
 
   constructor(
@@ -81,33 +84,33 @@ contract Betwei is VRFConsumerBaseV2 {
    * duration param -> max players
    * return gameId
    */
-  function createNewGame(GameType _type, uint16 _duration) public returns(uint256) {
+  function createNewGame(GameType _type, uint16 _duration) public payable hasAmount returns(uint256) {
     uint256 newIndex = indexedGames.length; 
     indexedGames++;
 
     Game memory newGame = new Game;
     newGame.owner = msg.sender;
     newGame.durantion = _duration;
-    newGame.type = _type;
+    newGame.gameType = _type;
     newGame.status = GameStatus.OPEN;
-    newGame.players[msg.sender] = true;
+    newGame.playersBalance[msg.sender] += msg.value;
     newGame.members.push(msg.sender);
     newGame.gameId = newIndex;
 
-    games[msg.sender].push(newGame)
-    indexedGames[newIndex] = newGame
+    games[msg.sender].push(newGame);
+    indexedGames[newIndex] = newGame;
 
     return newIndex;
   }
 
-  function enrollToGame(uint256 gameId) external gameExists(gameId) canEnroll(gameId) returns(bool) {
+  function enrollToGame(uint256 gameId) external gameExists(gameId) canEnroll(gameId) hasAmount returns(bool) {
     emit EnrolledToGame(gameId, msg.sender);
     Game memory game = indexedGames[gameId];
     game.members.push(msg.sender);
     if (game.durantion <= game.members.length) {
       game.status = GameStatus.CLOSED;
     }
-    game.players[msg.sender] = true;
+    game.playersBalance[msg.sender] += msg.value;
 
 
     return true;
@@ -121,23 +124,23 @@ contract Betwei is VRFConsumerBaseV2 {
   function closeGame(uint256 gameId) external gameExists(gameId) canManageGame(gameId) returns(bool) {
     Game memory game = indexedGames[gameId];
     require(game.status == GameStatus.OPEN);
-    game.status = GameStatus.CALCULATING;
+    game.status = GameStatus.CLOSED;
 
     return true;
   }
 
-  function start(uint256 gameId) external gameExists(gameId) canManageGame(gameId) returns(address) {
+  function startGame(uint256 gameId) external gameExists(gameId) canManageGame(gameId) returns(address) {
     Game memory game = indexedGames[gameId];
     require(game.status == GameStatus.CLOSED);
     game.status = GameStatus.CALCULATING;
 
     // TODO multiple winner
-    address payable winner = _calculateWinner(gameId);
+    address payable winner = _calculatingWinner(gameId);
 
     return winner;
   }
 
-  function _calculateWinner(uint _gameId) internal returns(address) {
+  function _calculatingWinner(uint _gameId) internal  {
     Game memory game = indexedGames[gameId];
     require(game.status == GameStatus.CALCULATING, "You aren't at that stage yet!");
 
@@ -151,9 +154,11 @@ contract Betwei is VRFConsumerBaseV2 {
       1 // num words
     );
 
-    uint256 winnerIndex = randomWords[0] % game.members.length;
+    requests[requestId] = game;
 
-    return game.members[winnerIndex];
+    //uint256 winnerIndex = randomWords[0] % game.members.length;
+
+    //return game.members[winnerIndex];
   }
 
 
@@ -176,10 +181,22 @@ contract Betwei is VRFConsumerBaseV2 {
   }
 
   function fulfillRandomWords(
-    uint256, /* requestId */
+    uint256 requestId
     uint256[] memory randomWords
   ) internal override {
-    s_randomWords = randomWords;
+    Game memory game = requests[requestId];
+
+    game.solution = randomWords[0];
+
+    _selectWinner(game);
+
+    //game.winners[0].call{}()
+  }
+
+  function _selectWinner(Game memory game) internal {
+    emit FinishGame(gameId, game.winners);
+    uint256 winnerIndex = randomWords[0] % game.members.length;
+    game.winners[0] =  game.members[winnerIndex];
   }
 
 
@@ -199,7 +216,7 @@ contract Betwei is VRFConsumerBaseV2 {
 
   modifier canEnroll(uint256 _gameId) {
     Game memory game = indexedGames[gameId]
-    require(!game.players[msg.sender], "User cannot enroll");
+    require(game.playersBalance[msg.sender] <= 0, "User cannot enroll");
     require(game.durantion > game.members.length, "User cannot enroll");
     require(game.status != GameStatus.OPEN, "User cannot enroll");
     _;
@@ -208,6 +225,10 @@ contract Betwei is VRFConsumerBaseV2 {
   modifier canManageGame(uint _gameId) {
     Game memory game = indexedGames[_gameId];
     require(game.owner == msg.sender, "Can't start game");
+  }
+
+  modifier hasAmount() {
+    require(msg.value > 0, "Amount has greather than 0 ");
   }
 
 }
