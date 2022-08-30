@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.7;
 
+import 'hardhat/console.sol';
 import "@chainlink/contracts/src/v0.8/interfaces/VRFCoordinatorV2Interface.sol";
 import "@chainlink/contracts/src/v0.8/VRFConsumerBaseV2.sol";
 
@@ -120,7 +121,12 @@ contract Betwei is VRFConsumerBaseV2 {
 
   function closeGame(uint256 gameId) external gameExists(gameId) canManageGame(gameId) returns(bool) {
     Game storage game = indexedGames[gameId];
-    require(game.status == GameStatus.OPEN);
+    if(
+      game.status != GameStatus.OPEN &&
+      game.status != GameStatus.CLOSED
+    ) {
+      revert();
+    }
     game.status = GameStatus.CLOSED;
 
     return true;
@@ -128,7 +134,7 @@ contract Betwei is VRFConsumerBaseV2 {
 
   function startGame(uint256 gameId) external gameExists(gameId) canManageGame(gameId) {
     Game storage game = indexedGames[gameId];
-    require(game.status == GameStatus.CLOSED);
+    require(game.status == GameStatus.CLOSED, 'The game not is closed');
     game.status = GameStatus.CALCULATING;
 
     // TODO multiple winner
@@ -141,7 +147,6 @@ contract Betwei is VRFConsumerBaseV2 {
     require(game.status == GameStatus.CALCULATING, "You aren't at that stage yet!");
 
     // TODO migrato to governance smartcontract
-    game.status = GameStatus.FINISHED;
     uint256 requestId = COORDINATOR.requestRandomWords(
       keyHash,
       s_subscriptionId,
@@ -163,6 +168,7 @@ contract Betwei is VRFConsumerBaseV2 {
    */
 
   // Assumes the subscription is funded sufficiently.
+  // deprecated
   function requestRandomWords() external onlyOwner {
     // Will revert if subscription is not set and funded.
     s_requestId = COORDINATOR.requestRandomWords(
@@ -180,22 +186,27 @@ contract Betwei is VRFConsumerBaseV2 {
     uint256 requestId,
     uint256[] memory randomWords
   ) internal override {
+    _selectWinner(requestId, randomWords);
+  }
+
+  function _selectWinner(uint256 requestId, uint256[] memory randomWords) public {
     uint256 gameIndex = requests[requestId];
     Game storage game = indexedGames[gameIndex];
-
+    require(game.status == GameStatus.CALCULATING, "Game not exists");
+    game.status = GameStatus.FINISHED;
     game.solution = randomWords[0];
-
-    _selectWinner(game);
-
-    //game.winners[0].call{}()
-  }
-
-  function _selectWinner(Game storage game) internal {
-    emit FinishGame(game.gameId, game.winners);
     uint256 winnerIndex = game.solution % game.members.length;
-    game.winners[0] =  game.members[winnerIndex];
+    game.winners.push(game.members[winnerIndex]);
+    emit FinishGame(game.gameId, game.winners);
   }
 
+  function gameStatus(uint _gameId) public view returns(uint256) {
+      return uint256(indexedGames[_gameId].status);
+  }
+
+  function winners(uint _gameId) public view returns(address[] memory) {
+      return indexedGames[_gameId].winners;
+  }
 
 
   /**
