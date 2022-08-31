@@ -105,6 +105,7 @@ contract Betwei is VRFConsumerBaseV2 {
     emit EnrolledToGame(gameId, msg.sender);
     Game storage game = indexedGames[gameId];
     game.members.push(payable(address(msg.sender)));
+    games[msg.sender].push(game);
     if (game.duration <= game.members.length) {
       game.status = GameStatus.CLOSED;
     }
