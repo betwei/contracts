@@ -9,11 +9,11 @@ import "@chainlink/contracts/src/v0.8/VRFConsumerBaseV2.sol";
 contract Betwei is VRFConsumerBaseV2 {
   VRFCoordinatorV2Interface COORDINATOR;
 
-  uint64 s_subscriptionId;
+  uint64 immutable s_subscriptionId;
 
   // Rinkeby address and keyhash Chainlink VRF
-  address vrfCoordinator; // = 0x6168499c0cFfCaCD319c818142124B7A15E857ab;
-  bytes32 keyHash; // = 0xd89b2bf150e3b9e13446986e571fb9cab24b13cea0a43ea20a6049a85cc807cc;
+  address immutable vrfCoordinator; // = 0x6168499c0cFfCaCD319c818142124B7A15E857ab;
+  bytes32 immutable keyHash; // = 0xd89b2bf150e3b9e13446986e571fb9cab24b13cea0a43ea20a6049a85cc807cc;
 
   uint32 callbackGasLimit = 100000;
 
@@ -21,8 +21,8 @@ contract Betwei is VRFConsumerBaseV2 {
 
   uint32 numWords =  2;
 
-  uint256[] public s_randomWords;
-  uint256 public s_requestId;
+  //uint256[] public s_randomWords;
+  //uint256 public s_requestId;
 
   address s_owner;
 
@@ -105,7 +105,7 @@ contract Betwei is VRFConsumerBaseV2 {
     emit EnrolledToGame(gameId, msg.sender);
     Game storage game = indexedGames[gameId];
     game.members.push(payable(address(msg.sender)));
-    games[msg.sender].push(game);
+    games[msg.sender].push(gameId);
     if (game.duration <= game.members.length) {
       game.status = GameStatus.CLOSED;
     }
@@ -158,9 +158,6 @@ contract Betwei is VRFConsumerBaseV2 {
 
     requests[requestId] = game.gameId;
 
-    //uint256 winnerIndex = randomWords[0] % game.members.length;
-
-    //return game.members[winnerIndex];
   }
 
 
@@ -168,20 +165,6 @@ contract Betwei is VRFConsumerBaseV2 {
    * Chainlink VRF functions
    */
 
-  // Assumes the subscription is funded sufficiently.
-  // deprecated
-  function requestRandomWords() external onlyOwner {
-    // Will revert if subscription is not set and funded.
-    s_requestId = COORDINATOR.requestRandomWords(
-      keyHash,
-      s_subscriptionId,
-      requestConfirmations,
-      callbackGasLimit,
-      numWords
-    );
-
-    // TODO emit event
-  }
 
   function fulfillRandomWords(
     uint256 requestId,
@@ -202,13 +185,16 @@ contract Betwei is VRFConsumerBaseV2 {
   }
 
   function gameStatus(uint _gameId) public view returns(uint256) {
-      return uint256(indexedGames[_gameId].status);
+    return uint256(indexedGames[_gameId].status);
   }
 
   function winners(uint _gameId) public view returns(address[] memory) {
-      return indexedGames[_gameId].winners;
+    return indexedGames[_gameId].winners;
   }
 
+  function playerGames(address player) public view returns(uint256[]) {
+    return games[player];
+  }
 
   /**
    * Start - Modifiers
