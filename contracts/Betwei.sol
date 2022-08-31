@@ -90,6 +90,7 @@ contract Betwei is VRFConsumerBaseV2 {
    * Create new game
    * duration param -> max players
    * return gameId
+   * TODO: amount parameter
    */
   function createNewGame(GameType _type, uint16 _duration) public payable hasAmount returns(uint256) {
     uint256 newIndex = indexedGames.length; 
