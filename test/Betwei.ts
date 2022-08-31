@@ -210,6 +210,50 @@ describe("Betwei test", function () {
 
   })
 
+  it('Success withdraw winner', async() => {
+
+    let {
+      betwei,
+      hardhatVrfCoordinatorV2Mock,
+      gameId,
+      owner,
+      otherAccount
+    } = await initContractAndGetGameId();
+
+    await enrollToGame(betwei, gameId, utils.parseEther('1'), otherAccount)
+
+    // close game
+    await betwei.connect(owner).closeGame(gameId);
+
+    await betwei.connect(owner).startGame(gameId)
+
+    // Send random
+    // first request.
+    let fullFillRandoms = 
+       await hardhatVrfCoordinatorV2Mock.fulfillRandomWords(1, betwei.address);
+
+    // winners 1
+    let winners = await betwei.winners(gameId);
+
+    if (owner.address === winners[0]) {
+      await expect(
+        betwei.connect(otherAccount).withdrawGame(gameId)
+      ).to.revertedWith('Player not winner');
+
+      await expect(
+        betwei.connect(owner).withdrawGame(gameId)
+      ).to.emit(betwei, 'WithdrawFromGame');
+    } else {
+      await expect(
+        betwei.connect(owner).withdrawGame(gameId)
+      ).to.revertedWith('Player not winner');
+
+      await expect(
+        betwei.connect(otherAccount).withdrawGame(gameId)
+      ).to.emit(betwei, 'WithdrawFromGame');
+    }
+  })
+
   /**
    * Functions
    */

@@ -63,8 +63,9 @@ contract Betwei is VRFConsumerBaseV2 {
    * Events
    */
   event NewGameCreated(uint256 indexed gameId);
-  event EnrolledToGame(uint256 gameId, address indexed player);
-  event FinishGame(uint256 gameId, address[] indexed winner); // TODO multiples winners?
+  event EnrolledToGame(uint256 indexed gameId, address indexed player);
+  event FinishGame(uint256 indexed gameId, address[] indexed winner); // TODO multiples winners?
+  event WithdrawFromGame(uint256 indexed gameId, address indexed winner);
 
 
   constructor(
@@ -101,6 +102,7 @@ contract Betwei is VRFConsumerBaseV2 {
     newGame.playersBalance[msg.sender] += msg.value;
     newGame.members.push(payable(address(msg.sender)));
     newGame.gameId = newIndex;
+    newGame.balance += msg.value;
     games[msg.sender].push(newIndex);
     return newIndex;
   }
@@ -114,7 +116,7 @@ contract Betwei is VRFConsumerBaseV2 {
       game.status = GameStatus.CLOSED;
     }
     game.playersBalance[msg.sender] += msg.value;
-
+    game.balance += msg.value;
 
     return true;
   }
@@ -200,6 +202,7 @@ contract Betwei is VRFConsumerBaseV2 {
     require(game.playersBalance[msg.sender] > 0, 'Player balance 0');
     require(game.winners[msg.sender], 'Player not winner');
     require(game.balance > 0, "Game finished, balance 0");
+    emit WithdrawFromGame(game.gameId, msg.sender);
     uint256 balanceGame = game.balance;
     game.balance = 0;
 
