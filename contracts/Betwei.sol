@@ -19,7 +19,7 @@ contract Betwei is VRFConsumerBaseV2 {
 
   uint16 requestConfirmations = 3;
 
-  uint32 numWords =  2;
+  uint32 numWords =  1;
 
   //uint256[] public s_randomWords;
   //uint256 public s_requestId;
@@ -76,6 +76,7 @@ contract Betwei is VRFConsumerBaseV2 {
   {
     COORDINATOR = VRFCoordinatorV2Interface(_vrfCoordinatorAddress);
     s_owner = msg.sender;
+    vrfCoordinator = _vrfCoordinatorAddress;
     keyHash = _keyHash;
     s_subscriptionId = _subscriptionId;
   }
@@ -156,7 +157,7 @@ contract Betwei is VRFConsumerBaseV2 {
       s_subscriptionId,
       requestConfirmations,
       callbackGasLimit,
-      1 // num words
+      numWords
     );
 
     requests[requestId] = game.gameId;
@@ -184,24 +185,16 @@ contract Betwei is VRFConsumerBaseV2 {
     game.solution = randomWords[0];
     uint256 winnerIndex = game.solution % game.members.length;
     game.winners[game.members[winnerIndex]] = true;
+    // only 1 winner
     game.winnersIndexed.push(game.members[winnerIndex]);
-    emit FinishGame(game.gameId, game.winners);
+    emit FinishGame(game.gameId, game.winnersIndexed);
   }
 
-  function gameStatus(uint _gameId) public view returns(uint256) {
-    return uint256(indexedGames[_gameId].status);
-  }
-
-  function winners(uint _gameId) public view returns(address[] memory) {
-    return indexedGames[_gameId].winners;
-  }
-
-  function playerGames() public view returns(uint256[]) {
-    return games[msg.sender];
-  }
-
+  /**
+   * Withdraw function
+   */
   function withdrawGame(uint256 _gameId) external gameExists(_gameId) returns(bool) {
-    Game storage game = indexedGames[gameIndex];
+    Game storage game = indexedGames[_gameId];
     require(game.status == GameStatus.FINISHED, "Game no finished");
     require(game.playersBalance[msg.sender] > 0, 'Player balance 0');
     require(game.winners[msg.sender], 'Player not winner');
@@ -214,6 +207,27 @@ contract Betwei is VRFConsumerBaseV2 {
 
     return true;
   }
+
+  /**
+   * Read functions
+   */
+
+  function gameStatus(uint _gameId) public view returns(uint256) {
+    return uint256(indexedGames[_gameId].status);
+  }
+
+  function winners(uint _gameId) public view returns(address[] memory) {
+    return indexedGames[_gameId].winnersIndexed;
+  }
+
+  function playerGames() public view returns(uint256[] memory) {
+    return games[msg.sender];
+  }
+
+  function getBalance() public view onlyOwner returns(uint256) {
+    return address(this).balance;
+  }
+
 
   /**
    * Start - Modifiers
