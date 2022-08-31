@@ -15,7 +15,7 @@ contract Betwei is VRFConsumerBaseV2 {
   address immutable vrfCoordinator; // = 0x6168499c0cFfCaCD319c818142124B7A15E857ab;
   bytes32 immutable keyHash; // = 0xd89b2bf150e3b9e13446986e571fb9cab24b13cea0a43ea20a6049a85cc807cc;
 
-  uint32 callbackGasLimit = 100000;
+  uint32 callbackGasLimit = 150000;
 
   uint16 requestConfirmations = 3;
 
@@ -184,9 +184,10 @@ contract Betwei is VRFConsumerBaseV2 {
     game.status = GameStatus.FINISHED;
     game.solution = randomWords[0];
     uint256 winnerIndex = game.solution % game.members.length;
-    game.winners[game.members[winnerIndex]] = true;
+    address winnerAddress = game.members[winnerIndex];
     // only 1 winner
-    game.winnersIndexed.push(game.members[winnerIndex]);
+    game.winnersIndexed.push(winnerAddress);
+    game.winners[winnerAddress] = true;
     emit FinishGame(game.gameId, game.winnersIndexed);
   }
 
@@ -202,6 +203,7 @@ contract Betwei is VRFConsumerBaseV2 {
     uint256 balanceGame = game.balance;
     game.balance = 0;
 
+    // transfer all game balance
     (bool success,) = payable(msg.sender).call{value: balanceGame}("");
     require(success, "Transfer amount fail");
 

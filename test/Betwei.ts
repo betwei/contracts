@@ -40,31 +40,6 @@ describe("Betwei test", function () {
     return { betwei, hardhatVrfCoordinatorV2Mock, owner, otherAccount };
   }
 
-  it("Contract should request Random numbers successfully", async () => {
-    const {
-      betwei,
-      hardhatVrfCoordinatorV2Mock,
-      owner
-    } : Deploy = await deployBetWai();
-
-    let { events } = await requestNewRandomNumbers(betwei);
-
-    expect(await betwei.s_requestId()).to.equal(1);
-
-    // TODO capture event and get reqId
-    // let { reqId:any } = events.filter( x => x.event === 'Event Request name')[0].args;
-    const reqId = 1;
-
-    await expect(
-       hardhatVrfCoordinatorV2Mock.fulfillRandomWords(reqId, betwei.address)
-    ).to.emit(hardhatVrfCoordinatorV2Mock, "RandomWordsFulfilled")
-
-    // random number
-    //expect(await getRandomNumber(betwei, 0)).to.greaterThan(0)
-    //expect(await getRandomNumber(betwei, 1)).to.greaterThan(0)
-
-  });
-
   it("Success create new bet", async () => {
     const {
       betwei,
@@ -73,10 +48,10 @@ describe("Betwei test", function () {
       otherAccount
     } : Deploy = await deployBetWai();
 
-    let events = await createNewGame(betwei);
+    let { events, tx } = await createNewGame(betwei);
 
-    expect(
-      events
+    await expect(
+      tx
     ).to.emit(betwei, "NewGameCreated");
 
     let gameId = getGameIdFromCreatedEvent(events);
@@ -141,15 +116,6 @@ describe("Betwei test", function () {
     expect(
        await betwei.gameStatus(gameId)
     ).to.equal(1);
-
-    // go, start the game 
-    expect(
-       await betwei.connect(owner).startGame(gameId)
-    ).to.emit(betwei, "FinishGame");
-
-    //expect(
-    //   await betwei.connect(owner).startGame(gameId)
-    //).to.be.oneOf([owner, otherAccount]);
   })
 
   it('Success finished game and check winners', async() => {
@@ -183,7 +149,7 @@ describe("Betwei test", function () {
     // go, start the game 
     expect(
        await betwei.connect(owner).startGame(gameId)
-    ).to.emit(betwei, "FinishGame");
+    ).to.be.ok;
 
     // CALCULATING
     expect(
@@ -198,6 +164,7 @@ describe("Betwei test", function () {
     await expect(
       fullFillRandoms
     ).to.emit(hardhatVrfCoordinatorV2Mock, "RandomWordsFulfilled")
+    .to.emit(betwei, 'FinishGame')
 
     // status finished
     // TODO : no set?
@@ -256,21 +223,10 @@ describe("Betwei test", function () {
       otherAccount
     } : Deploy = await deployBetWai();
 
-    let events = await createNewGame(betwei);
+    let {events} = await createNewGame(betwei);
     let gameId = getGameIdFromCreatedEvent(events);
 
     return {betwei, hardhatVrfCoordinatorV2Mock, owner, otherAccount, gameId};
-  }
-
-  async function requestNewRandomNumbers(betwei: Betwei) {
-
-    let txGenerateRandoms = await betwei.requestRandomWords();
-
-    return txGenerateRandoms.wait();
-  }
-
-  async function getRandomNumber(betwei: Betwei, index: Number) {
-    return betwei.s_randomWords(BigNumber.from(index));
   }
 
   async function createNewGame(betwei: Betwei) {
@@ -280,7 +236,7 @@ describe("Betwei test", function () {
     let tx = await betwei.createNewGame(0, 2, {value: utils.parseEther('1')});
     let { events } = await tx.wait();
 
-    return events;
+    return {events, tx};
 
   }
 
