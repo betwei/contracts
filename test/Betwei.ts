@@ -229,34 +229,49 @@ describe("Betwei test", function () {
 
     // Send random
     // first request.
+    // TODO: new version mock chainlink can generate random number for test
+    //await hardhatVrfCoordinatorV2Mock.fulfillRandomWordsWithOverride(1, betwei.address, [BigNumber.from(utils.randomBytes(32))])
     let fullFillRandoms = 
        await hardhatVrfCoordinatorV2Mock.fulfillRandomWords(1, betwei.address);
 
     // winners 1
     let winners = await betwei.winners(gameId);
 
+    let gameBalance = await betwei.gameBalance(gameId);
+    expect(gameBalance).to.be.greaterThan(0);
+
     if (owner.address === winners[0]) {
-      await expect(
-        betwei.connect(otherAccount).withdrawGame(gameId)
-      ).to.revertedWith('Player not winner');
-
-      await expect(
-        betwei.connect(owner).withdrawGame(gameId)
-      ).to.emit(betwei, 'WithdrawFromGame');
+      await testWithdrawGame(betwei, owner, gameId, gameBalance, otherAccount);
     } else {
-      await expect(
-        betwei.connect(owner).withdrawGame(gameId)
-      ).to.revertedWith('Player not winner');
-
-      await expect(
-        betwei.connect(otherAccount).withdrawGame(gameId)
-      ).to.emit(betwei, 'WithdrawFromGame');
+      await testWithdrawGame(betwei, otherAccount, gameId, gameBalance, owner);
     }
+
+    expect(await betwei.gameBalance(gameId)).to.be.equal(0);
   })
 
   /**
    * Functions
    */
+
+  async function testWithdrawGame(betwei: Betwei, winnerAccount: any, gameId: BigNumber, gameBalance: BigNumber, anotherAccount = undefined) {
+
+      if (anotherAccount) {
+        await expect(
+          betwei.connect(anotherAccount).withdrawGame(gameId)
+        ).to.revertedWith('Player not winner');
+      }
+
+      let withdrawGame = await betwei.connect(winnerAccount).withdrawGame(gameId);
+
+      await expect(
+        withdrawGame
+      ).to.emit(betwei, 'WithdrawFromGame')
+       .withArgs(gameId, winnerAccount.address);
+
+      await expect(withdrawGame).to.changeEtherBalance(
+        winnerAccount, gameBalance
+      );
+  }
 
   async function initContractAndGetGameId(): Promise<InitCreatedGame> {
     // init 

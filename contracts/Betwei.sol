@@ -225,6 +225,12 @@ contract Betwei is VRFConsumerBaseV2 {
     return indexedGames[_gameId].winnersIndexed;
   }
 
+  function gameBalance(uint _gameId) public view returns(uint256) {
+    Game storage game = indexedGames[_gameId];
+    require(game.playersBalance[msg.sender] > 0, 'Address not is member in the game');
+    return game.balance;
+  }
+
   function playerGames() public view returns(uint256[] memory) {
     return games[msg.sender];
   }
