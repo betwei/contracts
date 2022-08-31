@@ -43,8 +43,11 @@ contract Betwei is VRFConsumerBaseV2 {
     address owner;
     // TODO only registered by owner in private games?
     address payable[] members;
-    address[] winners;
+    mapping(address => bool) winners;
+    address[] winnersIndexed; // TODO: to evaluate
     mapping(address => uint256) playersBalance;
+    //uint256 neededAmount;
+    uint256 balance;
     uint256 gameId;
     uint256 duration;
     uint256 solution;
@@ -180,7 +183,8 @@ contract Betwei is VRFConsumerBaseV2 {
     game.status = GameStatus.FINISHED;
     game.solution = randomWords[0];
     uint256 winnerIndex = game.solution % game.members.length;
-    game.winners.push(game.members[winnerIndex]);
+    game.winners[game.members[winnerIndex]] = true;
+    game.winnersIndexed.push(game.members[winnerIndex]);
     emit FinishGame(game.gameId, game.winners);
   }
 
@@ -192,8 +196,23 @@ contract Betwei is VRFConsumerBaseV2 {
     return indexedGames[_gameId].winners;
   }
 
-  function playerGames(address player) public view returns(uint256[]) {
-    return games[player];
+  function playerGames() public view returns(uint256[]) {
+    return games[msg.sender];
+  }
+
+  function withdrawGame(uint256 _gameId) external gameExists(_gameId) returns(bool) {
+    Game storage game = indexedGames[gameIndex];
+    require(game.status == GameStatus.FINISHED, "Game no finished");
+    require(game.playersBalance[msg.sender] > 0, 'Player balance 0');
+    require(game.winners[msg.sender], 'Player not winner');
+    require(game.balance > 0, "Game finished, balance 0");
+    uint256 balanceGame = game.balance;
+    game.balance = 0;
+
+    (bool success,) = payable(msg.sender).call{value: balanceGame}("");
+    require(success, "Transfer amount fail");
+
+    return true;
   }
 
   /**
