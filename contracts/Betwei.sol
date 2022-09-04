@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.7;
 
-import 'hardhat/console.sol';
+//import 'hardhat/console.sol';
 import "@chainlink/contracts/src/v0.8/interfaces/VRFCoordinatorV2Interface.sol";
 import "@chainlink/contracts/src/v0.8/VRFConsumerBaseV2.sol";
 
@@ -46,11 +46,11 @@ contract Betwei is VRFConsumerBaseV2 {
     mapping(address => bool) winners;
     address[] winnersIndexed; // TODO: to evaluate
     mapping(address => uint256) playersBalance;
-    //uint256 neededAmount;
     uint256 balance;
     uint256 gameId;
     uint256 duration;
     uint256 solution;
+    uint256 neededAmount;
     // TODO block number create game?
   }
 
@@ -100,6 +100,7 @@ contract Betwei is VRFConsumerBaseV2 {
     newGame.duration = _duration;
     newGame.gameType = _type;
     newGame.status = GameStatus.OPEN;
+    newGame.neededAmount = msg.value;
     newGame.playersBalance[msg.sender] += msg.value;
     newGame.members.push(payable(address(msg.sender)));
     newGame.gameId = newIndex;
@@ -232,8 +233,28 @@ contract Betwei is VRFConsumerBaseV2 {
     return game.balance;
   }
 
-  function playerGames() public view returns(uint256[] memory) {
-    return games[msg.sender];
+  function playerGames(address _player) external view returns(uint256[] memory) {
+    return games[_player];
+  }
+
+  function viewGame(uint256 _gameId)
+    external
+    view
+    returns(
+      uint256 balance,
+      uint256 duration,
+      uint256 neededAmount,
+      GameType gameType,
+      GameStatus status,
+      address owner
+  ) {
+    Game storage game = indexedGames[_gameId];
+    balance = game.balance; 
+    duration = game.duration;
+    neededAmount = game.neededAmount;
+    owner = game.owner;
+    status = game.status;
+    gameType = game.gameType;
   }
 
   function getBalance() public view onlyOwner returns(uint256) {
@@ -257,6 +278,7 @@ contract Betwei is VRFConsumerBaseV2 {
   modifier canEnroll(uint256 _gameId) {
     Game storage game = indexedGames[_gameId];
     require(game.playersBalance[msg.sender] <= 0, "User cannot enroll");
+    require(game.neededAmount >= msg.value, "The amount required should be greather or equal");
     require(game.duration > game.members.length, "User cannot enroll");
     require(game.status == GameStatus.OPEN, "User cannot enroll");
     _;
