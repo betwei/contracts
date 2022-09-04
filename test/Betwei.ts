@@ -249,6 +249,69 @@ describe("Betwei test", function () {
     expect(await betwei.gameBalance(gameId)).to.be.equal(0);
   })
 
+  it('Success Get game info', async() => {
+
+    let {
+      betwei,
+      hardhatVrfCoordinatorV2Mock,
+      gameId,
+      owner,
+      otherAccount
+    } = await initContractAndGetGameId();
+
+    await enrollToGame(betwei, gameId, utils.parseEther('1'), otherAccount)
+    expect(await betwei.viewGame(gameId)).to.deep.equal([
+      utils.parseEther('2'),
+      BigNumber.from(2),
+      utils.parseEther('1'),
+      0,
+      1,
+      owner.address,
+    ])
+
+    // close game
+    await betwei.connect(owner).closeGame(gameId);
+
+    await betwei.connect(owner).startGame(gameId)
+    expect(await betwei.viewGame(gameId)).to.deep.equal([
+      utils.parseEther('2'),
+      BigNumber.from(2),
+      utils.parseEther('1'),
+      0,
+      2,
+      owner.address,
+    ])
+    // Send random
+    // first request.
+    // TODO: new version mock chainlink can generate random number for test
+    //await hardhatVrfCoordinatorV2Mock.fulfillRandomWordsWithOverride(1, betwei.address, [BigNumber.from(utils.randomBytes(32))])
+    let fullFillRandoms = 
+       await hardhatVrfCoordinatorV2Mock.fulfillRandomWords(1, betwei.address);
+
+    // winners 1
+    let winners = await betwei.winners(gameId);
+
+    let gameBalance = await betwei.gameBalance(gameId);
+    expect(gameBalance).to.be.greaterThan(0);
+    expect(await betwei.viewGame(gameId)).to.deep.equal([
+      utils.parseEther('2'),
+      BigNumber.from(2),
+      utils.parseEther('1'),
+      0,
+      3,
+      owner.address,
+    ])
+
+
+    if (owner.address === winners[0]) {
+      await testWithdrawGame(betwei, owner, gameId, gameBalance, otherAccount);
+    } else {
+      await testWithdrawGame(betwei, otherAccount, gameId, gameBalance, owner);
+    }
+
+    expect(await betwei.gameBalance(gameId)).to.be.equal(0);
+  })
+
   /**
    * Functions
    */
