@@ -249,7 +249,7 @@ contract Betwei is VRFConsumerBaseV2 {
       GameType gameType,
       GameStatus status,
       string memory description,
-      address[] memory members,
+      address payable[] memory members,
       address owner
   ) {
     Game storage game = indexedGames[_gameId];

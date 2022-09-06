@@ -266,6 +266,8 @@ describe("Betwei test", function () {
       utils.parseEther('1'),
       0,
       1,
+      'Description',
+      [owner.address, otherAccount.address],
       owner.address,
     ])
 
@@ -279,6 +281,8 @@ describe("Betwei test", function () {
       utils.parseEther('1'),
       0,
       2,
+      'Description',
+      [owner.address, otherAccount.address],
       owner.address,
     ])
     // Send random
@@ -299,6 +303,8 @@ describe("Betwei test", function () {
       utils.parseEther('1'),
       0,
       3,
+      'Description',
+      [owner.address, otherAccount.address],
       owner.address,
     ])
 
@@ -355,7 +361,7 @@ describe("Betwei test", function () {
 
     // max duration (players)
     // type 0 random winner
-    let tx = await betwei.createNewGame(0, 2, {value: utils.parseEther('1')});
+    let tx = await betwei.createNewGame(0, 2, 'Description', {value: utils.parseEther('1')});
     let { events } = await tx.wait();
 
     return {events, tx};
