@@ -248,6 +248,8 @@ contract Betwei is VRFConsumerBaseV2 {
       uint256 neededAmount,
       GameType gameType,
       GameStatus status,
+      string memory description,
+      address[] memory members,
       address owner
   ) {
     Game storage game = indexedGames[_gameId];
@@ -257,6 +259,8 @@ contract Betwei is VRFConsumerBaseV2 {
     owner = game.owner;
     status = game.status;
     gameType = game.gameType;
+    members = game.members;
+    description = game.description;
   }
 
   function getBalance() public view onlyOwner returns(uint256) {
