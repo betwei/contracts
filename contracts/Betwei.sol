@@ -41,6 +41,7 @@ contract Betwei is VRFConsumerBaseV2 {
     GameType gameType;
     GameStatus status;
     address owner;
+    string description;
     // TODO only registered by owner in private games?
     address payable[] members;
     mapping(address => bool) winners;
@@ -92,7 +93,7 @@ contract Betwei is VRFConsumerBaseV2 {
    * return gameId
    * TODO: amount parameter
    */
-  function createNewGame(GameType _type, uint16 _duration) public payable hasAmount returns(uint256) {
+  function createNewGame(GameType _type, uint16 _duration, string memory _description) public payable hasAmount returns(uint256) {
     uint256 newIndex = indexedGames.length; 
     emit NewGameCreated(newIndex);
     Game storage newGame = indexedGames.push();
@@ -105,6 +106,7 @@ contract Betwei is VRFConsumerBaseV2 {
     newGame.members.push(payable(address(msg.sender)));
     newGame.gameId = newIndex;
     newGame.balance += msg.value;
+    newGame.description = _description;
     games[msg.sender].push(newIndex);
     return newIndex;
   }
