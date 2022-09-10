@@ -210,17 +210,16 @@ contract Betwei is VRFConsumerBaseV2 {
    */
   function withdrawGame(uint256 _gameId) external gameExists(_gameId) returns(bool) {
     Game memory game = indexedGames[_gameId];
-    require(game.status == GameStatus.FINISHED, "Game no finished");
-    require(playerBalanceByGame[_gameId][msg.sender] != 0, 'Player balance 0');
-    require(winnersByGame[_gameId][msg.sender], 'Player not winner');
     require(game.balance != 0, "Game finished, balance 0");
+    require(game.status == GameStatus.FINISHED, "Game no finished");
+    require(winnersByGame[_gameId][msg.sender], 'Player not winner');
+    require(playerBalanceByGame[_gameId][msg.sender] != 0, 'Player balance 0');
     emit WithdrawFromGame(game.gameId, msg.sender);
     uint256 balanceGame = game.balance;
     game.balance = 0;
-    console.log("BALANCE", game.balance);
+    // save game
     indexedGames[_gameId] = game;
 
-    console.log("BALANCE", indexedGames[_gameId].balance);
     // transfer all game balance
     (bool success,) = payable(msg.sender).call{value: balanceGame}("");
     require(success, "Transfer amount fail");
@@ -279,7 +278,7 @@ contract Betwei is VRFConsumerBaseV2 {
 
   modifier canEnroll(uint256 _gameId) {
     Game storage game = indexedGames[_gameId];
-    require(playerBalanceByGame[_gameId][msg.sender] <= 0, "User cannot enroll");
+    require(playerBalanceByGame[_gameId][msg.sender] == 0, "User cannot enroll");
     require(game.neededAmount <= msg.value, "The amount required should be greather or equal");
     require(game.duration > game.members.length, "User cannot enroll");
     require(game.status == GameStatus.OPEN, "User cannot enroll");
