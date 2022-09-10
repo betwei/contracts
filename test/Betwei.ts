@@ -239,6 +239,7 @@ describe("Betwei test", function () {
     } = await initContractAndGetGameId();
 
     await enrollToGame(betwei, gameId, utils.parseEther('1'), otherAccount)
+    expect(await betwei.getBalance()).to.be.equal(utils.parseEther('2'));
 
     // close game
     await betwei.connect(owner).closeGame(gameId);
@@ -265,6 +266,7 @@ describe("Betwei test", function () {
     }
 
     expect(await betwei.gameBalance(gameId)).to.be.equal(0);
+    expect(await betwei.getBalance()).to.be.equal(utils.parseEther('0'));
   })
 
   it('Success Get game info', async() => {
