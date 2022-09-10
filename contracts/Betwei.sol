@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.7;
 
-//import 'hardhat/console.sol';
+import 'hardhat/console.sol';
 import "@chainlink/contracts/src/v0.8/interfaces/VRFCoordinatorV2Interface.sol";
 import "@chainlink/contracts/src/v0.8/VRFConsumerBaseV2.sol";
 
@@ -209,7 +209,7 @@ contract Betwei is VRFConsumerBaseV2 {
    * Withdraw function
    */
   function withdrawGame(uint256 _gameId) external gameExists(_gameId) returns(bool) {
-    Game storage game = indexedGames[_gameId];
+    Game memory game = indexedGames[_gameId];
     require(game.status == GameStatus.FINISHED, "Game no finished");
     require(playerBalanceByGame[_gameId][msg.sender] != 0, 'Player balance 0');
     require(winnersByGame[_gameId][msg.sender], 'Player not winner');
@@ -217,7 +217,10 @@ contract Betwei is VRFConsumerBaseV2 {
     emit WithdrawFromGame(game.gameId, msg.sender);
     uint256 balanceGame = game.balance;
     game.balance = 0;
+    console.log("BALANCE", game.balance);
+    indexedGames[_gameId] = game;
 
+    console.log("BALANCE", indexedGames[_gameId].balance);
     // transfer all game balance
     (bool success,) = payable(msg.sender).call{value: balanceGame}("");
     require(success, "Transfer amount fail");
