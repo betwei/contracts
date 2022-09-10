@@ -240,9 +240,7 @@ contract Betwei is VRFConsumerBaseV2 {
   }
 
   function gameBalance(uint _gameId) public view returns(uint256) {
-    Game storage game = indexedGames[_gameId];
-    require(playerBalanceByGame[_gameId][msg.sender] != 0, 'Address not is member in the game');
-    return game.balance;
+    return indexedGames[_gameId].balance;
   }
 
   function playerGames(address _player) external view returns(Game[] memory) {
@@ -277,8 +275,8 @@ contract Betwei is VRFConsumerBaseV2 {
   }
 
   modifier canEnroll(uint256 _gameId) {
-    Game storage game = indexedGames[_gameId];
     require(playerBalanceByGame[_gameId][msg.sender] == 0, "User cannot enroll");
+    Game memory game = indexedGames[_gameId];
     require(game.neededAmount <= msg.value, "The amount required should be greather or equal");
     require(game.duration > game.members.length, "User cannot enroll");
     require(game.status == GameStatus.OPEN, "User cannot enroll");
@@ -286,7 +284,7 @@ contract Betwei is VRFConsumerBaseV2 {
   }
 
   modifier canManageGame(uint _gameId) {
-    Game storage game = indexedGames[_gameId];
+    Game memory game = indexedGames[_gameId];
     require(game.owner == msg.sender, "Can't start game");
     _;
   }
