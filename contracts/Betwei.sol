@@ -44,9 +44,11 @@ contract Betwei is VRFConsumerBaseV2 {
     string description;
     // TODO only registered by owner in private games?
     address payable[] members;
-    mapping(address => bool) winners;
-    address[] winnersIndexed; // TODO: to evaluate
-    mapping(address => uint256) playersBalance;
+    // Quienes son los ganadores
+    address[] winnersIndexed;
+
+    //mapping(address => bool) winners;
+    //mapping(address => uint256) playersBalance;
     uint256 balance;
     uint256 gameId;
     uint256 duration;
@@ -55,7 +57,9 @@ contract Betwei is VRFConsumerBaseV2 {
     // TODO block number create game?
   }
 
-  mapping(address => uint256[]) games;
+  mapping(uint256 => mapping(address => bool)) winnersByGame;
+  mapping(uint256 => mapping(address => uint256)) playerBalanceByGame;
+  mapping(address => Game[]) games;
   mapping(uint256 => uint256) requests;
 
   Game[] indexedGames;
@@ -65,7 +69,7 @@ contract Betwei is VRFConsumerBaseV2 {
    */
   event NewGameCreated(uint256 indexed gameId);
   event EnrolledToGame(uint256 indexed gameId, address indexed player);
-  event FinishGame(uint256 indexed gameId, address[] indexed winner); // TODO multiples winners?
+  event FinishGame(uint256 indexed gameId); 
   event WithdrawFromGame(uint256 indexed gameId, address indexed winner);
 
 
@@ -102,12 +106,14 @@ contract Betwei is VRFConsumerBaseV2 {
     newGame.gameType = _type;
     newGame.status = GameStatus.OPEN;
     newGame.neededAmount = msg.value;
-    newGame.playersBalance[msg.sender] += msg.value;
+    playerBalanceByGame[newIndex][msg.sender] += msg.value;
+    //newGame.playersBalance[msg.sender] += msg.value;
     newGame.members.push(payable(address(msg.sender)));
     newGame.gameId = newIndex;
     newGame.balance += msg.value;
     newGame.description = _description;
-    games[msg.sender].push(newIndex);
+    //games[msg.sender].push(newIndex);
+    games[msg.sender].push(newGame);
     return newIndex;
   }
 
@@ -115,11 +121,12 @@ contract Betwei is VRFConsumerBaseV2 {
     emit EnrolledToGame(gameId, msg.sender);
     Game storage game = indexedGames[gameId];
     game.members.push(payable(address(msg.sender)));
-    games[msg.sender].push(gameId);
+    games[msg.sender].push(game);
     if (game.duration <= game.members.length) {
       game.status = GameStatus.CLOSED;
     }
-    game.playersBalance[msg.sender] += msg.value;
+    //game.playersBalance[msg.sender] += msg.value;
+    playerBalanceByGame[gameId][msg.sender] += msg.value;
     game.balance += msg.value;
 
     return true;
@@ -193,8 +200,9 @@ contract Betwei is VRFConsumerBaseV2 {
     address winnerAddress = game.members[winnerIndex];
     // only 1 winner
     game.winnersIndexed.push(winnerAddress);
-    game.winners[winnerAddress] = true;
-    emit FinishGame(game.gameId, game.winnersIndexed);
+    winnersByGame[gameIndex][winnerAddress] = true;
+    //game.winners[winnerAddress] = true;
+    emit FinishGame(game.gameId);
   }
 
   /**
@@ -203,9 +211,9 @@ contract Betwei is VRFConsumerBaseV2 {
   function withdrawGame(uint256 _gameId) external gameExists(_gameId) returns(bool) {
     Game storage game = indexedGames[_gameId];
     require(game.status == GameStatus.FINISHED, "Game no finished");
-    require(game.playersBalance[msg.sender] > 0, 'Player balance 0');
-    require(game.winners[msg.sender], 'Player not winner');
-    require(game.balance > 0, "Game finished, balance 0");
+    require(playerBalanceByGame[_gameId][msg.sender] != 0, 'Player balance 0');
+    require(winnersByGame[_gameId][msg.sender], 'Player not winner');
+    require(game.balance != 0, "Game finished, balance 0");
     emit WithdrawFromGame(game.gameId, msg.sender);
     uint256 balanceGame = game.balance;
     game.balance = 0;
@@ -231,11 +239,11 @@ contract Betwei is VRFConsumerBaseV2 {
 
   function gameBalance(uint _gameId) public view returns(uint256) {
     Game storage game = indexedGames[_gameId];
-    require(game.playersBalance[msg.sender] > 0, 'Address not is member in the game');
+    require(playerBalanceByGame[_gameId][msg.sender] != 0, 'Address not is member in the game');
     return game.balance;
   }
 
-  function playerGames(address _player) external view returns(uint256[] memory) {
+  function playerGames(address _player) external view returns(Game[] memory) {
     return games[_player];
   }
 
@@ -243,24 +251,9 @@ contract Betwei is VRFConsumerBaseV2 {
     external
     view
     returns(
-      uint256 balance,
-      uint256 duration,
-      uint256 neededAmount,
-      GameType gameType,
-      GameStatus status,
-      string memory description,
-      address payable[] memory members,
-      address owner
+        Game memory
   ) {
-    Game storage game = indexedGames[_gameId];
-    balance = game.balance; 
-    duration = game.duration;
-    neededAmount = game.neededAmount;
-    owner = game.owner;
-    status = game.status;
-    gameType = game.gameType;
-    members = game.members;
-    description = game.description;
+    return indexedGames[_gameId];
   }
 
   function getBalance() public view onlyOwner returns(uint256) {
@@ -283,8 +276,8 @@ contract Betwei is VRFConsumerBaseV2 {
 
   modifier canEnroll(uint256 _gameId) {
     Game storage game = indexedGames[_gameId];
-    require(game.playersBalance[msg.sender] <= 0, "User cannot enroll");
-    require(game.neededAmount >= msg.value, "The amount required should be greather or equal");
+    require(playerBalanceByGame[_gameId][msg.sender] <= 0, "User cannot enroll");
+    require(game.neededAmount <= msg.value, "The amount required should be greather or equal");
     require(game.duration > game.members.length, "User cannot enroll");
     require(game.status == GameStatus.OPEN, "User cannot enroll");
     _;
