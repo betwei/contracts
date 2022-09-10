@@ -210,6 +210,24 @@ describe("Betwei test", function () {
 
   })
 
+  it('Get games player', async() => {
+    let {
+      betwei,
+      gameId,
+      owner,
+      otherAccount
+    } = await initContractAndGetGameId();
+
+    // enroll another account
+    await expect(
+      enrollToGame(betwei, gameId, utils.parseEther('1'), otherAccount)
+    ).to.emit(betwei, "EnrolledToGame");
+
+    expect((await betwei.playerGames(owner.address)).length).to.be.equal(1)
+    expect((await betwei.playerGames(otherAccount.address)).length).to.be.equal(1)
+
+  })
+
   it('Success withdraw winner', async() => {
 
     let {
@@ -319,13 +337,9 @@ describe("Betwei test", function () {
       utils.parseEther('1'), // needed amount
     ])
 
-    let winnerAddress : any;
-
     if (owner.address === winners[0]) {
-        winnerAddress = owner.address;
         await testWithdrawGame(betwei, owner, gameId, gameBalance, otherAccount);
     } else {
-        winnerAddress = otherAccount.address;
         await testWithdrawGame(betwei, otherAccount, gameId, gameBalance, owner);
     }
     viewGame = await betwei.viewGame(gameId);
