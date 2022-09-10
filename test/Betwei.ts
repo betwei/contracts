@@ -261,14 +261,17 @@ describe("Betwei test", function () {
 
     await enrollToGame(betwei, gameId, utils.parseEther('1'), otherAccount)
     expect(await betwei.viewGame(gameId)).to.deep.equal([
-      utils.parseEther('2'),
-      BigNumber.from(2),
-      utils.parseEther('1'),
-      0,
-      1,
-      'Description',
-      [owner.address, otherAccount.address],
-      owner.address,
+      0, // game type
+      1, // status
+      owner.address, // game owner
+      'Description', // description
+      [owner.address, otherAccount.address], // members
+      [], // winners
+      utils.parseEther('2'), // balance
+      BigNumber.from(0), // game id
+      BigNumber.from(2), // max players
+      BigNumber.from(0), // solution
+      utils.parseEther('1'), // needed amount
     ])
 
     // close game
@@ -276,44 +279,69 @@ describe("Betwei test", function () {
 
     await betwei.connect(owner).startGame(gameId)
     expect(await betwei.viewGame(gameId)).to.deep.equal([
-      utils.parseEther('2'),
-      BigNumber.from(2),
-      utils.parseEther('1'),
-      0,
-      2,
-      'Description',
-      [owner.address, otherAccount.address],
-      owner.address,
+      0, // game type
+      2, // status
+      owner.address, // game owner
+      'Description', // description
+      [owner.address, otherAccount.address], // members
+      [], // winners
+      utils.parseEther('2'), // balance
+      BigNumber.from(0), // game id
+      BigNumber.from(2), // max players
+      BigNumber.from(0), // solution
+      utils.parseEther('1'), // needed amount
     ])
     // Send random
     // first request.
     // TODO: new version mock chainlink can generate random number for test
     //await hardhatVrfCoordinatorV2Mock.fulfillRandomWordsWithOverride(1, betwei.address, [BigNumber.from(utils.randomBytes(32))])
-    let fullFillRandoms = 
-       await hardhatVrfCoordinatorV2Mock.fulfillRandomWords(1, betwei.address);
+    await hardhatVrfCoordinatorV2Mock.fulfillRandomWords(1, betwei.address);
 
     // winners 1
     let winners = await betwei.winners(gameId);
 
     let gameBalance = await betwei.gameBalance(gameId);
     expect(gameBalance).to.be.greaterThan(0);
-    expect(await betwei.viewGame(gameId)).to.deep.equal([
-      utils.parseEther('2'),
-      BigNumber.from(2),
-      utils.parseEther('1'),
-      0,
-      3,
-      'Description',
-      [owner.address, otherAccount.address],
-      owner.address,
+
+    let viewGame = await betwei.viewGame(gameId);
+
+    expect(viewGame).to.deep.equal([
+      0, // game type
+      3, // status
+      owner.address, // game owner
+      'Description', // description
+      [owner.address, otherAccount.address], // members
+      [winners[0]], // winners
+      utils.parseEther('2'), // balance
+      BigNumber.from(0), // game id
+      BigNumber.from(2), // max players
+      viewGame.solution, // solution
+      utils.parseEther('1'), // needed amount
     ])
 
+    let winnerAddress : any;
 
     if (owner.address === winners[0]) {
-      await testWithdrawGame(betwei, owner, gameId, gameBalance, otherAccount);
+        winnerAddress = owner.address;
+        await testWithdrawGame(betwei, owner, gameId, gameBalance, otherAccount);
     } else {
-      await testWithdrawGame(betwei, otherAccount, gameId, gameBalance, owner);
+        winnerAddress = otherAccount.address;
+        await testWithdrawGame(betwei, otherAccount, gameId, gameBalance, owner);
     }
+    viewGame = await betwei.viewGame(gameId);
+    expect(viewGame).to.deep.equal([
+      0, // game type
+      3, // status
+      owner.address, // game owner
+      'Description', // description
+      [owner.address, otherAccount.address], // members
+      [winners[0]], // winners
+      utils.parseEther('0'), // balance
+      BigNumber.from(0), // game id
+      BigNumber.from(2), // max players
+      viewGame.solution, // solution
+      utils.parseEther('1'), // needed amount
+    ])
 
     expect(await betwei.gameBalance(gameId)).to.be.equal(0);
   })
@@ -327,19 +355,17 @@ describe("Betwei test", function () {
       if (anotherAccount) {
         await expect(
           betwei.connect(anotherAccount).withdrawGame(gameId)
-        ).to.revertedWith('Player not winner');
+        ).to.be.revertedWith('Player not winner');
       }
 
-      let withdrawGame = await betwei.connect(winnerAccount).withdrawGame(gameId);
+      let withdrawGame = betwei.connect(winnerAccount).withdrawGame(gameId);
 
       await expect(
-        withdrawGame
+          withdrawGame
       ).to.emit(betwei, 'WithdrawFromGame')
-       .withArgs(gameId, winnerAccount.address);
+       .withArgs(gameId, winnerAccount.address)
 
-      await expect(withdrawGame).to.changeEtherBalance(
-        winnerAccount, gameBalance
-      );
+      await expect(withdrawGame).to.be.changeEtherBalance(winnerAccount, gameBalance);
   }
 
   async function initContractAndGetGameId(): Promise<InitCreatedGame> {
