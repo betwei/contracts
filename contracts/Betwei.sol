@@ -190,10 +190,11 @@ contract Betwei is VRFConsumerBaseV2 {
     _selectWinner(requestId, randomWords);
   }
 
-  function _selectWinner(uint256 requestId, uint256[] memory randomWords) public {
+  function _selectWinner(uint256 requestId, uint256[] memory randomWords) internal {
     uint256 gameIndex = requests[requestId];
-    Game storage game = indexedGames[gameIndex];
-    require(game.status == GameStatus.CALCULATING, "Game not exists");
+    Game memory game = indexedGames[gameIndex];
+    require(game.status == GameStatus.CALCULATING, "Game no have status Calculating");
+    emit FinishGame(game.gameId);
     game.status = GameStatus.FINISHED;
     game.solution = randomWords[0];
     uint256 winnerIndex = game.solution % game.members.length;
@@ -201,8 +202,7 @@ contract Betwei is VRFConsumerBaseV2 {
     // only 1 winner
     game.winnersIndexed.push(winnerAddress);
     winnersByGame[gameIndex][winnerAddress] = true;
-    //game.winners[winnerAddress] = true;
-    emit FinishGame(game.gameId);
+    indexedGames[gameIndex] = game;
   }
 
   /**
