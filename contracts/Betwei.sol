@@ -59,7 +59,7 @@ contract Betwei is VRFConsumerBaseV2 {
 
   mapping(uint256 => mapping(address => bool)) winnersByGame;
   mapping(uint256 => mapping(address => uint256)) playerBalanceByGame;
-  mapping(address => Game[]) games;
+  mapping(address => string[]) games;
   mapping(uint256 => uint256) requests;
 
   Game[] indexedGames;
@@ -113,7 +113,9 @@ contract Betwei is VRFConsumerBaseV2 {
     newGame.balance += msg.value;
     newGame.description = _description;
     //games[msg.sender].push(newIndex);
-    games[msg.sender].push(newGame);
+    games[msg.sender].push(
+        string(abi.encodePacked(newIndex, '-', newGame.description))
+    );
     return newIndex;
   }
 
@@ -121,7 +123,9 @@ contract Betwei is VRFConsumerBaseV2 {
     emit EnrolledToGame(gameId, msg.sender);
     Game storage game = indexedGames[gameId];
     game.members.push(payable(address(msg.sender)));
-    games[msg.sender].push(game);
+    games[msg.sender].push(
+        string(abi.encodePacked(gameId, '-', game.description))
+    );
     if (game.duration <= game.members.length) {
       game.status = GameStatus.CLOSED;
     }
@@ -242,7 +246,7 @@ contract Betwei is VRFConsumerBaseV2 {
     return indexedGames[_gameId].balance;
   }
 
-  function playerGames(address _player) external view returns(Game[] memory) {
+  function playerGames(address _player) external view returns(string[] memory) {
       return games[_player];
   }
 
