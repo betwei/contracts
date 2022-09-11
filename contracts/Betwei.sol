@@ -119,6 +119,7 @@ contract Betwei is VRFConsumerBaseV2 {
   // @param _description description for humans
   // @return uint256
   function createRandomNFTGame(IERC721 _nftContract, uint256 _tokenId, uint256 _duration, string memory _description) public returns(uint256 _gameId) {
+    require(_nftContract.getApproved(_tokenId) == address(this), 'First approve transfer for this contract');
     NFTGameRandom memory newNft = NFTGameRandom(_nftContract, _tokenId);
     _gameId = _createNewGame(GameType.RANDOM_NFT_WINNER, _duration, _description);
     nftGame[_gameId] = newNft;

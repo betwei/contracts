@@ -396,10 +396,53 @@ describe('Betwei NFT Random game', function () {
           BigNumber.from(0), // solution
           utils.parseEther('0'), // needed amount
         ])
+    })
 
+    it('Fail create NFT game, previous approve', async() => {
+        const {
+          betwei,
+          hardhatVrfCoordinatorV2Mock,
+          owner,
+          otherAccount
+        } : Deploy = await deployBetWei();
+        let NftMock = await ethers.getContractFactory("NFTMock");
+        let nftMock = await NftMock.deploy();
+
+        // tokenId 0
+        await nftMock.safeMint(owner.address, 'https://buildship-metadata-qal51ck96-caffeinum.vercel.app/api/token/textapes/282');
+
+        // fail approve nft transfer
+        await expect(
+            betwei.connect(owner).createRandomNFTGame(
+                nftMock.address, 0, 2, 'Description'
+            )
+        ).to.be.revertedWith('First approve transfer for this contract');
+    })
+
+    it('Winner game transfer NFT', async() => {
+        const {
+          betwei,
+          hardhatVrfCoordinatorV2Mock,
+          owner,
+          otherAccount
+        } : Deploy = await deployBetWei();
+        let NftMock = await ethers.getContractFactory("NFTMock");
+        let nftMock = await NftMock.deploy();
+
+        // tokenId 0
+        await nftMock.safeMint(owner.address, 'http://my-nft-test.mock/metadata.json');
+        // approve transfer to betwei
+        await nftMock.connect(owner).approve(betwei.address, 0);
+
+        let tx = await betwei.connect(owner).createRandomNFTGame(nftMock.address, 0, 2, 'Description');
+        let {events} = await tx.wait()
+
+        let gameId = getGameIdFromCreatedEvent(events)
         await enrollToGame(betwei, gameId, BigNumber.from(0), otherAccount);
         await betwei.closeGame(gameId);
         await betwei.startGame(gameId);
+
+        // generate random number and trigger calculate winner
         const fullFillRandoms = await hardhatVrfCoordinatorV2Mock.fulfillRandomWords(1, betwei.address);
         await expect(
           fullFillRandoms
@@ -414,12 +457,14 @@ describe('Betwei NFT Random game', function () {
           winners
         ).to.contain.oneOf([owner.address, otherAccount.address]);
 
+        // game is finished
         expect(
            await betwei.gameStatus(gameId)
         ).to.equal(3);
 
+        // transfer nft to winner
         await testWithdrawGame(betwei, otherAccount, gameId, BigNumber.from(0), owner)
-        console.log(owner.address)
+        // now, nft token 0 owner is otherAccount
         expect(await nftMock.ownerOf(0)).to.be.equal(otherAccount.address)
 
     })
