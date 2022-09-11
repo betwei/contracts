@@ -21,9 +21,7 @@ type InitCreatedGame = {
 
 }
 
-describe("Betwei test", function () {
-
-  async function deployBetWai() : Promise<Deploy> {
+async function deployBetWei() : Promise<Deploy> {
     const [owner, otherAccount] = await ethers.getSigners();
 
     let vrfCoordinatorV2Mock = await ethers.getContractFactory("VRFCoordinatorV2Mock");
@@ -38,7 +36,9 @@ describe("Betwei test", function () {
     const betwei = await Betwei.deploy(1, "0xd89b2bf150e3b9e13446986e571fb9cab24b13cea0a43ea20a6049a85cc807cc", hardhatVrfCoordinatorV2Mock.address);
 
     return { betwei, hardhatVrfCoordinatorV2Mock, owner, otherAccount };
-  }
+}
+
+describe("Betwei test", function () {
 
   it("Success create new bet", async () => {
     const {
@@ -46,7 +46,7 @@ describe("Betwei test", function () {
       hardhatVrfCoordinatorV2Mock,
       owner,
       otherAccount
-    } : Deploy = await deployBetWai();
+    } : Deploy = await deployBetWei();
 
     let { events, tx } = await createNewGame(betwei);
 
@@ -361,12 +361,75 @@ describe("Betwei test", function () {
 
     expect(await betwei.gameBalance(gameId)).to.be.equal(0);
   })
+});
+
+describe('Betwei NFT Random game', function () {
+    it('Create NFT game', async() => {
+        const {
+          betwei,
+          hardhatVrfCoordinatorV2Mock,
+          owner,
+          otherAccount
+        } : Deploy = await deployBetWei();
+        let NftMock = await ethers.getContractFactory("NFTMock");
+        let nftMock = await NftMock.deploy();
+
+        // tokenId 0
+        await nftMock.safeMint(owner.address, 'https://buildship-metadata-qal51ck96-caffeinum.vercel.app/api/token/textapes/282');
+        // approve transfer to betwei
+        await nftMock.connect(owner).approve(betwei.address, 0);
+
+        let tx = await betwei.connect(owner).createRandomNFTGame(nftMock.address, 0, 2, 'Description');
+        let {events} = await tx.wait()
+
+        let gameId = getGameIdFromCreatedEvent(events)
+        expect(await betwei.viewGame(0)).to.deep.equal([
+          1, // game type
+          0, // status
+          owner.address, // game owner
+          'Description', // description
+          [owner.address], // members
+          [], // winners
+          utils.parseEther('0'), // balance
+          BigNumber.from(0), // game id
+          BigNumber.from(2), // max players
+          BigNumber.from(0), // solution
+          utils.parseEther('0'), // needed amount
+        ])
+
+        await enrollToGame(betwei, gameId, BigNumber.from(0), otherAccount);
+        await betwei.closeGame(gameId);
+        await betwei.startGame(gameId);
+        const fullFillRandoms = await hardhatVrfCoordinatorV2Mock.fulfillRandomWords(1, betwei.address);
+        await expect(
+          fullFillRandoms
+        ).to.emit(hardhatVrfCoordinatorV2Mock, "RandomWordsFulfilled")
+        .to.emit(betwei, 'FinishGame')
+
+        // winners 1
+        let winners = await betwei.winners(gameId);
+        expect(winners).to.have.lengthOf(1);
+
+        expect(
+          winners
+        ).to.contain.oneOf([owner.address, otherAccount.address]);
+
+        expect(
+           await betwei.gameStatus(gameId)
+        ).to.equal(3);
+
+        await testWithdrawGame(betwei, otherAccount, gameId, BigNumber.from(0), owner)
+        console.log(owner.address)
+        expect(await nftMock.ownerOf(0)).to.be.equal(otherAccount.address)
+
+    })
+});
 
   /**
    * Functions
    */
 
-  async function testWithdrawGame(betwei: Betwei, winnerAccount: any, gameId: BigNumber, gameBalance: BigNumber, anotherAccount = undefined) {
+async function testWithdrawGame(betwei: Betwei, winnerAccount: any, gameId: BigNumber, gameBalance: BigNumber, anotherAccount = undefined) {
 
       if (anotherAccount) {
         await expect(
@@ -382,24 +445,24 @@ describe("Betwei test", function () {
        .withArgs(gameId, winnerAccount.address)
 
       await expect(withdrawGame).to.be.changeEtherBalance(winnerAccount, gameBalance);
-  }
+}
 
-  async function initContractAndGetGameId(): Promise<InitCreatedGame> {
+async function initContractAndGetGameId(): Promise<InitCreatedGame> {
     // init 
     const {
       betwei,
       hardhatVrfCoordinatorV2Mock,
       owner,
       otherAccount
-    } : Deploy = await deployBetWai();
+    } : Deploy = await deployBetWei();
 
     let {events} = await createNewGame(betwei);
     let gameId = getGameIdFromCreatedEvent(events);
 
     return {betwei, hardhatVrfCoordinatorV2Mock, owner, otherAccount, gameId};
-  }
+}
 
-  async function createNewGame(betwei: Betwei) {
+async function createNewGame(betwei: Betwei) {
 
     // max duration (players)
     // type 0 random winner
@@ -408,9 +471,9 @@ describe("Betwei test", function () {
 
     return {events, tx};
 
-  }
+}
 
-  function getGameIdFromCreatedEvent(events: any) {
+function getGameIdFromCreatedEvent(events: any) {
 
     let args = events!!.filter(
       (x: any) => x.event === 'NewGameCreated'
@@ -422,10 +485,9 @@ describe("Betwei test", function () {
 
     let gameId : BigNumber = args[0];
     return gameId;
-  }
+}
 
-  async function enrollToGame(betwei: Betwei, gameId: BigNumber, amount: BigNumber, account: any) {
+async function enrollToGame(betwei: Betwei, gameId: BigNumber, amount: BigNumber, account: any) {
     return betwei.connect(account)
       .enrollToGame(gameId, {value: amount})
-  }
-});
+}

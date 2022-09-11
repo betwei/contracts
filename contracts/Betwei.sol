@@ -266,10 +266,12 @@ contract Betwei is VRFConsumerBaseV2 {
   // @notice withdraw award. in the case RANDOM_NFT_WINNER, transfer owner token
   function withdrawGame(uint256 _gameId) external gameExists(_gameId) returns(bool) {
     Game memory game = indexedGames[_gameId];
-    require(game.balance != 0, "Game finished, balance 0");
     require(game.status == GameStatus.FINISHED, "Game no finished");
     require(winnersByGame[_gameId][msg.sender], 'Player not winner');
-    require(playerBalanceByGame[_gameId][msg.sender] != 0, 'Player balance 0');
+    require(
+        game.gameType == GameType.RANDOM_NFT_WINNER || (game.balance != 0 && playerBalanceByGame[_gameId][msg.sender] != 0),
+        "Game finished, balance 0"
+    );
     emit WithdrawFromGame(game.gameId, msg.sender);
     uint256 balanceGame = game.balance;
     game.balance = 0;
