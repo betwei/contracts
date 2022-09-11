@@ -4,9 +4,12 @@ pragma solidity ^0.8.7;
 import 'hardhat/console.sol';
 import "@chainlink/contracts/src/v0.8/interfaces/VRFCoordinatorV2Interface.sol";
 import "@chainlink/contracts/src/v0.8/VRFConsumerBaseV2.sol";
+import "@openzeppelin/contracts/utils/Strings.sol";
+import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
 
 contract Betwei is VRFConsumerBaseV2 {
+  using Strings for uint256;
   VRFCoordinatorV2Interface COORDINATOR;
 
   uint64 immutable s_subscriptionId;
@@ -27,7 +30,8 @@ contract Betwei is VRFConsumerBaseV2 {
   address s_owner;
 
   enum GameType {
-    RANDOMWINNER
+    RANDOMWINNER,
+    RANDOM_NFT_WINNER
   }
 
   enum GameStatus {
@@ -35,6 +39,11 @@ contract Betwei is VRFConsumerBaseV2 {
     CLOSED,
     CALCULATING,
     FINISHED
+  }
+
+  struct NFTGameRandom {
+      IERC721 nftContract;
+      uint256 tokenId;
   }
 
   struct Game {
@@ -61,6 +70,7 @@ contract Betwei is VRFConsumerBaseV2 {
   mapping(uint256 => mapping(address => uint256)) playerBalanceByGame;
   mapping(address => string[]) games;
   mapping(uint256 => uint256) requests;
+  mapping(uint256 => NFTGameRandom) nftGame;
 
   Game[] indexedGames;
 
@@ -97,7 +107,17 @@ contract Betwei is VRFConsumerBaseV2 {
    * return gameId
    * TODO: amount parameter
    */
-  function createNewGame(GameType _type, uint16 _duration, string memory _description) public payable hasAmount returns(uint256) {
+  function createSimpleNewGame(uint256 _duration, string memory _description) public payable hasAmount returns(uint256) {
+      return _createNewGame(GameType.RANDOMWINNER, _duration, _description);
+  }
+
+  function createRandomNFTGame(IERC721 _nftContract, uint256 _tokenId, uint256 _duration, string memory _description) public returns(uint256 _gameId) {
+    NFTGameRandom memory newNft = NFTGameRandom(_nftContract, _tokenId);
+    _gameId = _createNewGame(GameType.RANDOM_NFT_WINNER, _duration, _description);
+    nftGame[_gameId] = newNft;
+  }
+
+  function _createNewGame(GameType _type, uint256 _duration, string memory _description) internal returns (uint256) {
     uint256 newIndex = indexedGames.length; 
     emit NewGameCreated(newIndex);
     Game storage newGame = indexedGames.push();
@@ -114,7 +134,7 @@ contract Betwei is VRFConsumerBaseV2 {
     newGame.description = _description;
     //games[msg.sender].push(newIndex);
     games[msg.sender].push(
-        string(abi.encodePacked(newIndex, '-', newGame.description))
+        string(abi.encodePacked(newIndex.toString(), '-', newGame.description))
     );
     return newIndex;
   }
@@ -124,7 +144,7 @@ contract Betwei is VRFConsumerBaseV2 {
     Game storage game = indexedGames[gameId];
     game.members.push(payable(address(msg.sender)));
     games[msg.sender].push(
-        string(abi.encodePacked(gameId, '-', game.description))
+        string(abi.encodePacked(gameId.toString(), '-', game.description))
     );
     if (game.duration <= game.members.length) {
       game.status = GameStatus.CLOSED;
@@ -223,11 +243,20 @@ contract Betwei is VRFConsumerBaseV2 {
     // save game
     indexedGames[_gameId] = game;
 
-    // transfer all game balance
-    (bool success,) = payable(msg.sender).call{value: balanceGame}("");
-    require(success, "Transfer amount fail");
+    if (uint(game.gameType) == 0) {
+        // transfer all game balance
+        (bool success,) = payable(msg.sender).call{value: balanceGame}("");
+        require(success, "Transfer amount fail");
 
-    return true;
+        return true;
+    }
+
+    if (uint(game.gameType) == 1) {
+        NFTGameRandom memory _nftGame = nftGame[_gameId];
+        IERC721 _nftContract = _nftGame.nftContract;
+        _nftContract.transferFrom(game.owner, msg.sender, _nftGame.tokenId);
+        return true;
+    }
   }
 
   /**
