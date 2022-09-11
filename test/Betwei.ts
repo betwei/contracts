@@ -403,7 +403,7 @@ describe("Betwei test", function () {
 
     // max duration (players)
     // type 0 random winner
-    let tx = await betwei.createNewGame(0, 2, 'Description', {value: utils.parseEther('1')});
+    let tx = await betwei.createSimpleNewGame(2, 'Description', {value: utils.parseEther('1')});
     let { events } = await tx.wait();
 
     return {events, tx};
