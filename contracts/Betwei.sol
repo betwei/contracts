@@ -59,7 +59,7 @@ contract Betwei is VRFConsumerBaseV2 {
 
   mapping(uint256 => mapping(address => bool)) winnersByGame;
   mapping(uint256 => mapping(address => uint256)) playerBalanceByGame;
-  mapping(address => uint256[]) games;
+  mapping(address => Game[]) games;
   mapping(uint256 => uint256) requests;
 
   Game[] indexedGames;
@@ -112,7 +112,8 @@ contract Betwei is VRFConsumerBaseV2 {
     newGame.gameId = newIndex;
     newGame.balance += msg.value;
     newGame.description = _description;
-    games[msg.sender].push(newIndex);
+    //games[msg.sender].push(newIndex);
+    games[msg.sender].push(newGame);
     return newIndex;
   }
 
@@ -120,7 +121,7 @@ contract Betwei is VRFConsumerBaseV2 {
     emit EnrolledToGame(gameId, msg.sender);
     Game storage game = indexedGames[gameId];
     game.members.push(payable(address(msg.sender)));
-    games[msg.sender].push(gameId);
+    games[msg.sender].push(game);
     if (game.duration <= game.members.length) {
       game.status = GameStatus.CLOSED;
     }
@@ -151,12 +152,10 @@ contract Betwei is VRFConsumerBaseV2 {
   }
 
   function startGame(uint256 gameId) external gameExists(gameId) canManageGame(gameId) {
-    Game memory game = indexedGames[gameId];
+    Game storage game = indexedGames[gameId];
     require(game.status == GameStatus.CLOSED, 'The game not is closed');
     game.status = GameStatus.CALCULATING;
 
-
-    indexedGames[gameId] = game;
     // TODO multiple winner
     _calculatingWinner(game);
 
@@ -203,7 +202,6 @@ contract Betwei is VRFConsumerBaseV2 {
     // only 1 winner
     game.winnersIndexed.push(winnerAddress);
     winnersByGame[gameIndex][winnerAddress] = true;
-    indexedGames[gameIndex] = game;
   }
 
   /**
@@ -244,7 +242,7 @@ contract Betwei is VRFConsumerBaseV2 {
     return indexedGames[_gameId].balance;
   }
 
-  function playerGames(address _player) external view returns(uint256[] memory) {
+  function playerGames(address _player) external view returns(Game[] memory) {
       return games[_player];
   }
 

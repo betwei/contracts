@@ -1,7 +1,9 @@
 import { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
 import * as dotenv from 'dotenv';
+import './tasks/cverify'
 dotenv.config();
+
 
 const RINKEBY_PK_ADDRESS = process.env.RINKEBY_PK_ADDRESS || '';
 const GOERLI_PK_ADDRESS = process.env.GOERLI_PK_ADDRESS || '';
@@ -27,3 +29,5 @@ const config: HardhatUserConfig = {
 };
 
 export default config;
+
+
