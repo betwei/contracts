@@ -118,7 +118,7 @@ contract Betwei is VRFConsumerBaseV2 {
   }
 
   function _createNewGame(GameType _type, uint256 _duration, string memory _description) internal returns (uint256) {
-    uint256 newIndex = indexedGames.length; 
+    uint256 newIndex = indexedGames.length;
     emit NewGameCreated(newIndex);
     Game storage newGame = indexedGames.push();
     newGame.owner = msg.sender;
@@ -139,9 +139,16 @@ contract Betwei is VRFConsumerBaseV2 {
     return newIndex;
   }
 
-  function enrollToGame(uint256 gameId) external payable canEnroll(gameId) hasAmount gameExists(gameId) returns(bool) {
-    emit EnrolledToGame(gameId, msg.sender);
+  function enrollToGame(uint256 gameId)
+    external
+    payable
+    canEnroll(gameId)
+    gameExists(gameId)
+    returns(bool)
+  {
     Game storage game = indexedGames[gameId];
+    require(game.gameType == GameType.RANDOM_NFT_WINNER || game.neededAmount <= msg.value, "The amount required should be greather or equal");
+    emit EnrolledToGame(gameId, msg.sender);
     game.members.push(payable(address(msg.sender)));
     games[msg.sender].push(
         string(abi.encodePacked(gameId.toString(), '-', game.description))
@@ -257,6 +264,8 @@ contract Betwei is VRFConsumerBaseV2 {
         _nftContract.transferFrom(game.owner, msg.sender, _nftGame.tokenId);
         return true;
     }
+
+    revert('Game not implemented');
   }
 
   /**
@@ -288,6 +297,13 @@ contract Betwei is VRFConsumerBaseV2 {
     return indexedGames[_gameId];
   }
 
+  function nftInfo(uint256 _gameId) external view returns(NFTGameRandom memory) {
+      Game memory game = indexedGames[_gameId];
+      require(game.gameType == GameType.RANDOM_NFT_WINNER, 'Game invalid type');
+
+      return nftGame[_gameId];
+  }
+
   function getBalance() public view onlyOwner returns(uint256) {
     return address(this).balance;
   }
@@ -309,7 +325,6 @@ contract Betwei is VRFConsumerBaseV2 {
   modifier canEnroll(uint256 _gameId) {
     require(playerBalanceByGame[_gameId][msg.sender] == 0, "User cannot enroll");
     Game memory game = indexedGames[_gameId];
-    require(game.neededAmount <= msg.value, "The amount required should be greather or equal");
     require(game.duration > game.members.length, "User cannot enroll");
     require(game.status == GameStatus.OPEN, "User cannot enroll");
     _;
