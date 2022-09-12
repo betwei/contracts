@@ -106,8 +106,12 @@ contract Betwei is VRFConsumerBaseV2 {
   // @param _duration max players
   // @param _description description for humans
   // @return uint256
-  function createSimpleNewGame(uint256 _duration, string memory _description) public payable hasAmount returns(uint256) {
-      return _createNewGame(GameType.RANDOMWINNER, _duration, _description);
+  function createSimpleNewGame(uint256 _duration, string memory _description) public payable hasAmount returns(uint256 newGameIndex) {
+      newGameIndex = _createNewGame(GameType.RANDOMWINNER, _duration, _description);
+      Game storage newGame = indexedGames[newGameIndex];
+      playerBalanceByGame[newGameIndex][msg.sender] += msg.value;
+      newGame.members.push(payable(address(msg.sender)));
+      indexedGames[newGameIndex] = newGame;
   }
 
   // @notice Create new game, draw a NFT
@@ -139,9 +143,6 @@ contract Betwei is VRFConsumerBaseV2 {
     newGame.gameType = _type;
     newGame.status = GameStatus.OPEN;
     newGame.neededAmount = msg.value;
-    playerBalanceByGame[newIndex][msg.sender] += msg.value;
-    //newGame.playersBalance[msg.sender] += msg.value;
-    newGame.members.push(payable(address(msg.sender)));
     newGame.gameId = newIndex;
     newGame.balance += msg.value;
     newGame.description = _description;

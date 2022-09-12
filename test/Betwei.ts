@@ -388,7 +388,7 @@ describe('Betwei NFT Random game', function () {
           0, // status
           owner.address, // game owner
           'Description', // description
-          [owner.address], // members
+          [], // members
           [], // winners
           utils.parseEther('0'), // balance
           BigNumber.from(0), // game id
